@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إرسال إلى ديسكورد</title>
+<style>
+  :root {
+    --bg: #1b1030;
+    --panel: #271845;
+    --line: #4a3180;
+    --text: #f4eeff;
+    --muted: #a99bc9;
+    --accent: #ffcf3f;
+    --ok: #4ade80;
+    --err: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  main { width: 100%; max-width: 520px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 24px; }
+  form, details {
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-weight: 700; margin: 14px 0 6px; }
+  label:first-child { margin-top: 0; }
+  input, textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 2px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+  }
+  input:focus, textarea:focus, button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  button {
+    width: 100%;
+    margin-top: 20px;
+    padding: 14px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #2a1d00;
+    font: inherit;
+    font-weight: 800;
+    font-size: 17px;
+    cursor: pointer;
+  }
+  button:disabled { opacity: .6; cursor: wait; }
+  #status { min-height: 24px; margin-top: 12px; font-weight: 700; }
+  #status.ok { color: var(--ok); }
+  #status.err { color: var(--err); }
+  summary { cursor: pointer; font-weight: 700; }
+  code { direction: ltr; unicode-bidi: embed; }
+  input[type="url"], #power { direction: ltr; text-align: right; }
+</style>
+</head>
+<body>
+<main>
+  <h1>إرسال إلى ديسكورد</h1>
+  <p class="sub">اكتب أي شي في الخانات، وينرسل مثل ما هو.</p>
+
+  <form id="form">
+    <label for="name">اسم البرينروت</label>
+    <input id="name" placeholder="Meowl" autocomplete="off">
+
+    <label for="rarity">ندرته</label>
+    <input id="rarity" placeholder="OG" autocomplete="off">
+
+    <label for="power">قوته</label>
+    <input id="power" placeholder="1k < 5k" autocomplete="off">
+    <div class="hint">اكتب التغيير بحرية، مثل: 1k &lt; 5k</div>
+
+    <label for="extra">ملاحظة (اختياري)</label>
+    <textarea id="extra" rows="3" placeholder="أي شي تبي تضيفه"></textarea>
+
+    <button id="send" type="submit">إرسال</button>
+    <div id="status" role="status"></div>
+  </form>
+
+  <details id="settings">
+    <summary>إعدادات الويب هوك</summary>
+    <label for="hook">رابط Webhook حق ديسكورد</label>
+    <input id="hook" type="url" placeholder="https://discord.com/api/webhooks/1569409472642945097/4bL3WRqMaPCl4sM2p1Se8I5MfUWUKB5ZXUIcHWII6LMB_O3qu85f5nNY4334vgFzgh9i" autocomplete="off">
+    <div class="hint">ينحفظ في متصفحك بس، ما يتكتب داخل الكود. كذا ما ينكشف لو الموقع على GitHub.</div>
+  </details>
+</main>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const hookInput = $("hook");
+  const status = $("status");
+
+  // Restore saved webhook (stays in this browser only)
+  try { hookInput.value = localStorage.getItem("discord_hook") || ""; } catch (e) {}
+  if (!hookInput.value) $("settings").open = true;
+
+  hookInput.addEventListener("change", () => {
+    try { localStorage.setItem("discord_hook", hookInput.value.trim()); } catch (e) {}
+  });
+
+  function setStatus(text, cls) {
+    status.textContent = text;
+    status.className = cls || "";
+  }
+
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const hook = hookInput.value.trim();
+    if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(hook)) {
+      $("settings").open = true;
+      setStatus("حط رابط الويب هوك الصحيح أول.", "err");
+      return;
+    }
+
+    const name = $("name").value.trim();
+    const rarity = $("rarity").value.trim();
+    const power = $("power").value.trim();
+    const extra = $("extra").value.trim();
+
+    if (!name && !rarity && !power && !extra) {
+      setStatus("اكتب شي قبل الإرسال.", "err");
+      return;
+    }
+
+    const fields = [];
+    if (name)   fields.push({ name: "اسم البرينروت", value: name,   inline: true });
+    if (rarity) fields.push({ name: "ندرته",         value: rarity, inline: true });
+    if (power)  fields.push({ name: "قوته",          value: power,  inline: false });
+    if (extra)  fields.push({ name: "ملاحظة",        value: extra,  inline: false });
+
+    const payload = {
+      embeds: [{
+        title: name || "تحديث",
+        color: 0xffcf3f,
+        fields,
+        timestamp: new Date().toISOString()
+      }]
+    };
+
+    $("send").disabled = true;
+    setStatus("جاري الإرسال...");
+    try {
+      const res = await fetch(hook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        setStatus("تم الإرسال ✅", "ok");
+        $("form").reset();
+      } else {
+        setStatus("فشل الإرسال (رمز " + res.status + "). تأكد من الرابط.", "err");
+      }
+    } catch (err) {
+      setStatus("ما قدرت أتصل بديسكورد. تأكد من النت والرابط.", "err");
+    } finally {
+      $("send").disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
